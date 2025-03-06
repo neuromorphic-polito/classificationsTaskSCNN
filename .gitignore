@@ -1,0 +1,14 @@
+.idea
+*__pycache__*
+bibliography
+test
+remoteConda
+nohup.out
+
+utils/dataEncodingPerformance.py
+
+4-analyses
+*.wav
+*.bin
+*.keras
+*.csv
