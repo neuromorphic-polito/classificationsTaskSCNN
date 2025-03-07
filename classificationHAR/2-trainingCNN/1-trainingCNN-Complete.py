@@ -22,17 +22,13 @@ def main(datasetName, encoding, filterbank, channels, bins, structure):
 
     modelCNN.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-    runningTrain, runningTest, runningModel = [], [], []
+    running = []
     for epochs in range(60):
-        accuracyTrain = modelCNN.fit(x=trainSource, y=trainTarget, validation_split=0.1, epochs=1, batch_size=1, verbose=0)
+        accuracyTrain = modelCNN.fit(x=trainSource, y=trainTarget, epochs=1, batch_size=1, verbose=0)
         accuracyTest = modelCNN.evaluate(x=testSource, y=testTarget, verbose=0)
-        runningTrain.append(accuracyTrain.history['accuracy'][-1])
-        runningTest.append(accuracyTest[-1])
-        runningModel.append(modelCNN)
+        running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], modelCNN])
 
-    selected = np.argmax(runningTest)
-
-    return runningTrain[selected], runningTest[selected], runningModel[selected]
+    return sorted(running, key=lambda x: (x[1], x[0]), reverse=True)[0]
 
 
 if __name__ == '__main__':
@@ -77,14 +73,12 @@ if __name__ == '__main__':
     print(datasetName, encoding, filterbank, channels, bins, structure)
 
     if flagCompute == True:
-        metrics = np.zeros(trials)
         history = []
         for trial in range(trials):
             accuracyTrain, accuracyTest, modelCNN = main(datasetName, encoding, filterbank, channels, bins, structure)
             history.append((accuracyTrain, accuracyTest, modelCNN))
-            metrics[trial] = (1-accuracyTrain)**2+(1-accuracyTest)**2
 
-        accuracyTrain, accuracyTest, modelCNN = history[np.argmin(metrics)]
+        accuracyTrain, accuracyTest, modelCNN = sorted(history, key=lambda x: (x[1], x[0]), reverse=True)[0]
 
         ##### Save data of models #####
         sourceFolder = '../../networkModels/HumanActivityRecognition/complete/'
