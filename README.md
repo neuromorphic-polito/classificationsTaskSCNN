@@ -85,4 +85,3 @@ Formato BibTeX:
 - vittorio.fra@polito.it
 - evelina.forno@polito.it
 - enrico.macii@polito.it
-- 
