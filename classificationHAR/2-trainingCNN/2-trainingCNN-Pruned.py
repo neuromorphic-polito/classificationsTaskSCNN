@@ -45,7 +45,7 @@ def main(datasetName, encoding, filterbank, channels, bins, structure, quartile)
     for epochs in range(40):
         accuracyTrain = modelCNNPruned.fit(x=trainSource, y=trainTarget, validation_split=0.1, epochs=1, batch_size=1, verbose=0)
         accuracyTest = modelCNNPruned.evaluate(x=testSource, y=testTarget, verbose=0)
-        running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], modelCNN])
+        running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], synapses, modelCNN])
 
     return sorted(running, key=lambda x: (x[1], x[0]), reverse=True)[0]
 
