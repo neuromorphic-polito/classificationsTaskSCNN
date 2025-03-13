@@ -83,4 +83,3 @@ Formato BibTeX:
 - gianvito.urgese@polito.it
 - vittorio.fra@polito.it
 - evelina.forno@polito.it
-- enrico.macii@polito.it
