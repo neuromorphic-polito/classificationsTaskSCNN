@@ -23,7 +23,7 @@ configurations = [
 
 structures = ['c06c12f2', 'c12c24f2']
 quartiles = ['median', 'upper']
-trials = 30
+trials = 60
 
 ##### Run training models #####
 count = 1
