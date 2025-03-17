@@ -34,7 +34,7 @@ def main(datasetName, encoding, filterbank, channels, bins, structure, quartile)
     # ##### Dataset loading ##### #
     ###############################
     sourceFolder = '../../datasets/HumanActivityRecognition/datasetSonograms/'
-    fileName = f'{sourceFolder}sonogram_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin'
+    fileName = f'{sourceFolder}sonograms_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin'
     trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'SNN')
 
     timeStimulus = {'duration': 1000.0, 'silence': 30.0}

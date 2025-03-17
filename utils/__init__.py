@@ -10,7 +10,7 @@ from utils.dataEncoding import Latency
 
 from utils.dataEncodingPerformance import spikeEfficiency
 
-from utils.netUtility import datasetSplitting
+from utils.dataUtility import datasetSplitting
 
 from utils.architecture import netModelsComplete
 from utils.architecture import netModelsPruned

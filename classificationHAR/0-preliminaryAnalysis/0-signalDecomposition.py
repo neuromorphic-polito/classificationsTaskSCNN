@@ -3,8 +3,9 @@ sys.path.append('../../')
 import pickle
 from utils import DataDevice
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.signal import butter, gammatone, freqz
+import matplotlib.pyplot as plt
+
 
 ######################################
 # ##### Sample standardization ##### #
@@ -22,6 +23,7 @@ sample.padding(pad)
 ###########################
 plt.figure()
 plt.title('WISDM Sample')
+plt.axis('off')
 for axis in range(6):
     plt.subplot(2, 3, axis+1)
     plt.plot(np.linspace(0, 180, pad), sample.data[axis])

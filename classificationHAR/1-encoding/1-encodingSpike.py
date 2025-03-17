@@ -2,11 +2,11 @@ import sys
 sys.path.append('../../')
 import argparse
 import numpy as np
-import pickle
 from utils import DataDevice
 from scipy.signal import butter, gammatone
 from scipy.signal.windows import *
 from utils import RateCoding, TemporalContrast, DeconvolutionBased, GlobalReferenced, Latency
+import pickle
 
 
 def main(device, datasetName, subsetLabel, filterbank, channels):
@@ -127,7 +127,7 @@ def main(device, datasetName, subsetLabel, filterbank, channels):
     ##### Save data on numpy file #####
     sourceFolder = f'../../datasets/HumanActivityRecognition/datasetSpike/'
     for i, encoding in enumerate(encodings):
-        file = open(f'{sourceFolder}spikeTrain_{datasetName}{filterbank}{channels}{encoding}.bin', 'wb')
+        file = open(f'{sourceFolder}spikeTrains_{datasetName}{filterbank}{channels}{encoding}.bin', 'wb')
         pickle.dump(datasetSpike[i], file)
         file.close()
 

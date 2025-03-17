@@ -121,7 +121,7 @@ def main(filterbank, channels):
     ##### Save data on numpy file #####
     sourceFolder = f'../../datasets/FreeSpokenDigits/datasetSpike/'
     for i, encoding in enumerate(encodings):
-        file = open(f'{sourceFolder}spikeTrain_{filterbank}{channels}{encoding}.bin', 'wb')
+        file = open(f'{sourceFolder}spikeTrains_{filterbank}{channels}{encoding}.bin', 'wb')
         pickle.dump(datasetSpike[i], file)
         file.close()
 

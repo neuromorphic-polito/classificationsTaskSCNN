@@ -2,8 +2,9 @@ import sys
 sys.path.append('../../')
 from utils import DataAudio
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.signal import butter, gammatone, freqz
+import matplotlib.pyplot as plt
+
 
 ######################################
 # ##### Sample standardization ##### #

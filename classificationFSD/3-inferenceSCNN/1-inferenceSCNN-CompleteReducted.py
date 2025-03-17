@@ -34,7 +34,7 @@ def main(encoding, filterbank, channels, bins, structure, reduction):
     # ##### Dataset loading ##### #
     ###############################
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSonograms/'
-    fileName = f'{sourceFolder}sonogram_{filterbank}{channels}x{bins}{encoding}.bin'
+    fileName = f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin'
     trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'SNN')
 
     timeStimulus = {'duration': 1000.0, 'silence': 30.0}

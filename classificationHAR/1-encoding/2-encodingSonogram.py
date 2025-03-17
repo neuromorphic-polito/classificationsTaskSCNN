@@ -34,7 +34,7 @@ def main(datasetName, encoding, filterbank, channels, binsWindow):
     # ##### Load dataset spike ##### #
     ##################################
     sourceFolder = f'../../datasets/HumanActivityRecognition/datasetSpike/'
-    file = open(f'{sourceFolder}spikeTrain_{datasetName}{filterbank}{channels}{encoding}.bin', 'rb')
+    file = open(f'{sourceFolder}spikeTrains_{datasetName}{filterbank}{channels}{encoding}.bin', 'rb')
     datasetSpike = pickle.load(file)
     file.close()
 
@@ -55,7 +55,7 @@ def main(datasetName, encoding, filterbank, channels, binsWindow):
     # ##### Save sonogram dataset ##### #
     #####################################
     sourceFolder = f'../../datasets/HumanActivityRecognition/datasetSonograms/'
-    file = open(f'{sourceFolder}sonogram_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin', 'wb')
+    file = open(f'{sourceFolder}sonograms_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin', 'wb')
     pickle.dump(datasetSonograms, file)
     file.close()
 

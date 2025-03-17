@@ -14,7 +14,7 @@ import pandas as pd
 def main(encoding, filterbank, channels, bins, structure, quartile):
     ##### Dataset loading #####
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSonograms/'
-    fileName = f'{sourceFolder}sonogram_{filterbank}{channels}x{bins}{encoding}.bin'
+    fileName = f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin'
     trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'CNN')
 
     ##### Load model network #####
@@ -42,7 +42,7 @@ def main(encoding, filterbank, channels, bins, structure, quartile):
     modelCNNPruned.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     running = []
-    for epochs in range(40):
+    for _ in range(40):
         accuracyTrain = modelCNNPruned.fit(x=trainSource, y=trainTarget, epochs=1, batch_size=1, verbose=0)
         accuracyTest = modelCNNPruned.evaluate(x=testSource, y=testTarget, verbose=0)
         running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], synapses, modelCNN])

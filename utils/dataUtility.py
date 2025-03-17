@@ -1,5 +1,5 @@
-import pickle
 import random
+import pickle
 import numpy as np
 
 def datasetSplitting(fileName, netType):
@@ -33,9 +33,9 @@ def datasetSplitting(fileName, netType):
         testSource = np.expand_dims(testSource, axis=3)
     elif netType == 'SNN':
         trainSource *= 255.0
-        trainTarget = trainTarget.flatten()
-
         testSource *= 255.0
+
+        trainTarget = trainTarget.flatten()
         testTarget = testTarget.flatten()
     else:
         raise Exception(f'Network {netType} not available')

@@ -1,10 +1,9 @@
 import sys
 sys.path.append('../../')
 import argparse
+import pandas as pd
 from utils import datasetSplitting
 from utils import netModelsComplete
-import numpy as np
-import pandas as pd
 
 
 #############################
@@ -13,7 +12,7 @@ import pandas as pd
 def main(datasetName, encoding, filterbank, channels, bins, structure):
     ##### Dataset loading #####
     sourceFolder = '../../datasets/HumanActivityRecognition/datasetSonograms/'
-    fileName = f'{sourceFolder}sonogram_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin'
+    fileName = f'{sourceFolder}sonograms_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin'
     trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'CNN')
 
     ##### Model definitions #####
@@ -23,7 +22,7 @@ def main(datasetName, encoding, filterbank, channels, bins, structure):
     modelCNN.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     running = []
-    for epochs in range(60):
+    for _ in range(60):
         accuracyTrain = modelCNN.fit(x=trainSource, y=trainTarget, epochs=1, batch_size=1, verbose=0)
         accuracyTest = modelCNN.evaluate(x=testSource, y=testTarget, verbose=0)
         running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], modelCNN])

@@ -32,7 +32,7 @@ def main(encoding, filterbank, channels, binsWindow):
     # ##### Load dataset spike ##### #
     ##################################
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSpike/'
-    file = open(f'{sourceFolder}spikeTrain_{filterbank}{channels}{encoding}.bin', 'rb')
+    file = open(f'{sourceFolder}spikeTrains_{filterbank}{channels}{encoding}.bin', 'rb')
     datasetSpike = pickle.load(file)
     file.close()
 
@@ -53,7 +53,7 @@ def main(encoding, filterbank, channels, binsWindow):
     # ##### Save sonogram dataset ##### #
     #####################################
     sourceFolder = f'../../datasets/FreeSpokenDigits/datasetSonograms/'
-    file = open(f'{sourceFolder}sonogram_{filterbank}{channels}x{bins}{encoding}.bin', 'wb')
+    file = open(f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin', 'wb')
     pickle.dump(datasetSonograms, file)
     file.close()
 

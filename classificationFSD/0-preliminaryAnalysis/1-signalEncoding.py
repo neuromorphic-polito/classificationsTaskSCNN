@@ -5,8 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, gammatone, freqz
 from utils import RateCoding, TemporalContrast, DeconvolutionBased, GlobalReferenced, Latency
-from utils import spikeEfficiency
 from scipy.signal.windows import *
+from utils import spikeEfficiency
+
 
 ######################################
 # ##### Sample standardization ##### #
