@@ -2,8 +2,8 @@ import sys
 sys.path.append('../../')
 import argparse
 import pickle
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def featureExtraction(datasetSpike, channels, pad, binsWindow, plot=False):
@@ -16,31 +16,28 @@ def featureExtraction(datasetSpike, channels, pad, binsWindow, plot=False):
 
         sonogram = np.zeros((6*channels, binsNumber))
         for slices in range(binsNumber):
-            sonogram[:, slices] = np.sum(spikeTrain[:, 0+slices*binsSample:binsSample+slices*binsSample],axis=1)
+            sonogram[:, slices] = np.sum(spikeTrain[:, 0+slices*binsSample:binsSample+slices*binsSample], axis=1)
         if plot:
             plt.figure()
             plt.imshow(spikeTrain, aspect='auto')
             plt.figure()
             plt.xlabel('Bins')
             plt.ylabel('Channels')
-            plt.imshow(sonogram, aspect='auto', vmax=75, vmin=0)
+            plt.imshow(sonogram, aspect='auto', vmin=0, vmax=75)
             plt.show()
         datasetSonogram.append([sonogram, label])
     return binsNumber, datasetSonogram
 
 
 def main(datasetName, encoding, filterbank, channels, binsWindow):
-    ##################################
     # ##### Load dataset spike ##### #
-    ##################################
     sourceFolder = f'../../datasets/HumanActivityRecognition/datasetSpike/'
     file = open(f'{sourceFolder}spikeTrains_{datasetName}{filterbank}{channels}{encoding}.bin', 'rb')
     datasetSpike = pickle.load(file)
     file.close()
 
-    #################################
-    # ##### Sonogram creation ##### #
-    #################################
+
+    # ##### Sonogram generation ##### #
     bins, sonograms = featureExtraction(datasetSpike, channels, 4800, binsWindow)
     datasetSonograms = {}
     for value, key in sonograms:
@@ -51,9 +48,10 @@ def main(datasetName, encoding, filterbank, channels, binsWindow):
     classMin = np.min([len(samples) for samples in datasetSonograms.values()])
     datasetSonograms = {key: datasetSonograms[key][0:classMin] for key in datasetSonograms.keys()}
 
-    #####################################
-    # ##### Save sonogram dataset ##### #
-    #####################################
+
+    #########################
+    # ##### Save data ##### #
+    #########################
     sourceFolder = f'../../datasets/HumanActivityRecognition/datasetSonograms/'
     file = open(f'{sourceFolder}sonograms_{datasetName}{filterbank}{channels}x{bins}{encoding}.bin', 'wb')
     pickle.dump(datasetSonograms, file)
@@ -73,7 +71,6 @@ if __name__ == '__main__':
 
     argument = parser.parse_args()
 
-    ##### Parsing unpack #####
     datasetName = argument.datasetName
     encoding = argument.encoding
     filterbank = argument.filterbank

@@ -1,11 +1,10 @@
 import os
 
 
-###############################################
-# ##### Configuration space definitions ##### #
-###############################################
+###################################
+# ##### Configuration space ##### #
+###################################
 subsets = ['subset1', 'subset2']
-
 ##### Encoding algorithm selected #####
 encodings = ['RATE', 'TBR', 'SF', 'ZCSF', 'MW', 'HSA', 'MHSA', 'BSA', 'PHASE', 'TTFS', 'BURST']
 
@@ -22,20 +21,19 @@ configurations = [
 ]
 
 structures = ['c06c12f2', 'c12c24f2']
-quartiles = ['median', 'upper']
+quantile = ['median', 'upper']
 trials = 60
 
-##### Run training models #####
-count = 1
+##### Training models #####
 for subset in subsets:
     for encoding in encodings:
         for configuration in configurations:
             filterbank, channel, bins = configuration
             for structure in structures:
-                os.system(f'python 1-trainingCNN-Complete.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -t={trials}')
-                for quartile in quartiles:
-                    os.system(f'python 2-trainingCNN-Pruned.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -q={quartile} -t={trials}')
-                    if count % 10 == 0:
-                        file = open('nohup.out', 'w')
-                        file.close()
-                    count += 1
+                command = f'python 1-trainingCNN-Complete.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -t={trials}'
+                print(command)
+                os.system(command)
+                for quartile in quantile:
+                    command = f'python 2-trainingCNN-Pruned.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -q={quartile}'
+                    print(command)
+                    os.system(command)

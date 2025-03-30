@@ -10,14 +10,15 @@ filterbanks = ['butterworth', 'gammatone']
 channels = [32, 64]
 for filterbank in filterbanks:
     for channel in channels:
-        os.system(f'python -u 1-encodingSpike.py -f={filterbank} -c={channel}')
-        print(f'python -u 1-encodingSpike.py -f={filterbank} -c={channel}')
+        command = f'python -u 1-encodingSpike.py -f={filterbank} -c={channel}'
+        print(command)
+        os.system(command)
 
 
 ###################################
 # ##### Sonogram generation ##### #
 ###################################
-##### Encoding algorithm selected #####
+##### Encoding algorithm #####
 encodings = ['RATE', 'TBR', 'SF', 'ZCSF', 'MW', 'HSA', 'MHSA', 'BSA', 'PHASE', 'TTFS', 'BURST']
 
 ##### Binning settings #####
@@ -38,5 +39,6 @@ configurations = [
 for encoding in encodings:
     for configuration in configurations:
         filterbank, channel, binsWindow = configuration
-        os.system(f'python -u 2-encodingSonogram.py -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}')
-        print(f'python -u 2-encodingSonogram.py -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}')
+        command = f'python -u 2-encodingSonogram.py -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}'
+        print(command)
+        os.system(command)

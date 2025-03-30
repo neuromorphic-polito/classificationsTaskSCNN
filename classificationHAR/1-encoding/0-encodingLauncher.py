@@ -12,16 +12,16 @@ channels = [4, 8, 16]
 for subsetName, subsetLabels in subsets:
     for filterbank in filterbanks:
         for channel in channels:
-            os.system(f'python -u 1-encodingSpike.py -d=watch -n={subsetName} -s={subsetLabels} -f={filterbank} -c={channel}')
-            print(f'python -u 1-encodingSpike.py -d=watch -n={subsetName} -s={subsetLabels} -f={filterbank} -c={channel}')
+            command = f'python -u 1-encodingSpike.py -d=watch -n={subsetName} -s={subsetLabels} -f={filterbank} -c={channel}'
+            print(command)
+            os.system(command)
 
 
 ###################################
 # ##### Sonogram generation ##### #
 ###################################
 subsets = [('subset1', 'A,B,G,H,P,R'), ('subset2', 'G,H,I,J,K,L,M')]
-
-##### Encoding algorithm selected #####
+##### Encoding algorithm #####
 encodings = ['RATE', 'TBR', 'SF', 'ZCSF', 'MW', 'HSA', 'MHSA', 'BSA', 'PHASE', 'TTFS', 'BURST']
 
 ##### Binning settings #####
@@ -40,5 +40,6 @@ for subsetName, _ in subsets:
     for encoding in encodings:
         for configuration in configurations:
             filterbank, channel, binsWindow = configuration
-            os.system(f'python -u 2-encodingSonogram.py -n={subsetName} -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}')
-            print(f'python -u 2-encodingSonogram.py -n={subsetName} -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}')
+            command = f'python -u 2-encodingSonogram.py -n={subsetName} -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}'
+            print(command)
+            os.system(command)

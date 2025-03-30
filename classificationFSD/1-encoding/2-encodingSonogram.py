@@ -1,12 +1,14 @@
+import sys
+sys.path.append('../../')
 import argparse
 import pickle
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def featureExtraction(datasetSpike, channels, pad, binsWindow, plot=False):
     datasetSonogram = []
-    binsSample, binsNumber = int(pad*binsWindow//1000), int(1000//binsWindow)
+    binsSample, binsNumber = int(pad*binsWindow/1000), int(1000/binsWindow)
     for address, t, label in datasetSpike:
 
         spikeTrain = np.zeros((channels, pad), dtype=bool)
@@ -21,24 +23,21 @@ def featureExtraction(datasetSpike, channels, pad, binsWindow, plot=False):
             plt.figure()
             plt.xlabel('Bins')
             plt.ylabel('Channels')
-            plt.imshow(sonogram, aspect='auto',  vmin=0, vmax=75)
+            plt.imshow(sonogram, aspect='auto', vmin=0, vmax=75)
             plt.show()
         datasetSonogram.append([sonogram, label])
     return binsNumber, datasetSonogram
 
 
 def main(encoding, filterbank, channels, binsWindow):
-    ##################################
     # ##### Load dataset spike ##### #
-    ##################################
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSpike/'
     file = open(f'{sourceFolder}spikeTrains_{filterbank}{channels}{encoding}.bin', 'rb')
     datasetSpike = pickle.load(file)
     file.close()
 
-    #################################
-    # ##### Sonogram creation ##### #
-    #################################
+
+    # ##### Sonogram generation ##### #
     bins, sonograms = featureExtraction(datasetSpike, channels, 8000, binsWindow)
     datasetSonograms = {}
     for value, key in sonograms:
@@ -49,9 +48,10 @@ def main(encoding, filterbank, channels, binsWindow):
     classMin = np.min([len(samples) for samples in datasetSonograms.values()])
     datasetSonograms = {key: datasetSonograms[key][0:classMin] for key in datasetSonograms.keys()}
 
-    #####################################
-    # ##### Save sonogram dataset ##### #
-    #####################################
+
+    #########################
+    # ##### Save data ##### #
+    #########################
     sourceFolder = f'../../datasets/FreeSpokenDigits/datasetSonograms/'
     file = open(f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin', 'wb')
     pickle.dump(datasetSonograms, file)
@@ -70,7 +70,6 @@ if __name__ == '__main__':
 
     argument = parser.parse_args()
 
-    ##### Parsing unpack #####
     encoding = argument.encoding
     filterbank = argument.filterbank
     channels = argument.channels

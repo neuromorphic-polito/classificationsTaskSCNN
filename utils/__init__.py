@@ -10,12 +10,9 @@ from utils.dataEncoding import Latency
 
 from utils.dataEncodingPerformance import spikeEfficiency
 
-from utils.dataUtility import datasetSplitting
+from utils.dataUtility import datasetSplit
+from utils.dataUtility import DatasetTorch
 
-from utils.architecture import netModelsComplete
-from utils.architecture import netModelsPruned
-from utils.architecture import Relu
-from utils.architecture import Masking
+from utils.architecture import netModels
 
-from utils.conversionCNN import CNN
 from utils.conversionSCNN import SNN

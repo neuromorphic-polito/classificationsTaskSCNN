@@ -18,17 +18,20 @@ def main(filterbank, channels):
 
     encodings = ['RATE', 'TBR', 'SF', 'ZCSF', 'MW', 'HSA', 'MHSA', 'BSA', 'PHASE', 'TTFS', 'BURST']
 
-    ##### Memory for encoded data #####
+
+    #############################
+    # ##### Data encoding ##### #
+    #############################
     datasetSpike = [[] for _ in range(len(encodings))]
     for idxlabel in range(10):
         for idxSample in range(50):
-            ##### Data standardization #####
-            print(f'Sample: Label {idxlabel}, {idxSample+1}/50')
+            # ##### Sample standardization ##### #
+            # print(f'Sample: Label {idxlabel}, {idxSample+1}/50')
             sourceFolder = '../../datasets/FreeSpokenDigits/datasetRaw/'
             sample = DataAudio(f'{sourceFolder}/{idxlabel}_jackson_{idxSample}.wav')
             sample.padding(8000)
 
-            ##### Frequency decomposition #####
+            # ##### Frequency decomposition ##### #
             if filterbank == 'butterworth':
                 order = 2
                 filterbankButter = []
@@ -44,9 +47,8 @@ def main(filterbank, channels):
                     filterbankGammatone.append([num, den])
                 sample.decomposition(filterbankGammatone)
 
-            #####################################
+
             # ##### Parameters definition ##### #
-            #####################################
             sfThreshold = np.mean([component.max()-component.min() for component in sample.freqComp])/10
             zcsfThreshold = np.mean([component.max()-component.min() for component in sample.freqComp])/10
             mwThreshold = [np.mean(np.abs(component[1:]-component[:-1])) for component in sample.freqComp]
@@ -65,14 +67,13 @@ def main(filterbank, channels):
                 'beNmax': 5, 'beTmin': 0, 'beTmax': 4, 'beLength': 13
             }
 
-            #################################
+
             # ##### Encoding settings ##### #
-            #################################
             ##### Rate coding #####
             encoderRateCoding = RateCoding(settings)
             encoderRateCoding.PoissonRate(sample.freqComp)
 
-            ##### Temporal Contrast #####
+            ##### Temporal contrast #####
             encoderTemporalContrast = TemporalContrast(settings)
             encoderTemporalContrast.ThresholdBasedRepresentation(sample.freqComp)
             encoderTemporalContrast.StepForward(sample.freqComp)
@@ -85,7 +86,7 @@ def main(filterbank, channels):
             encoderDeconvolutionBased.ModifiedHoughSpikerAlgorithm(sample.freqComp)
             encoderDeconvolutionBased.BenSpikerAlgorithm(sample.freqComp)
 
-            ##### Global Referenced #####
+            ##### Global referenced #####
             encoderGlobalReferenced = GlobalReferenced(settings)
             encoderGlobalReferenced.PhaseEncoding(sample.freqComp)
             encoderGlobalReferenced.TimeToFirstSpike(sample.freqComp)
@@ -94,13 +95,14 @@ def main(filterbank, channels):
             encoderLatency = Latency(settings)
             encoderLatency.BurstEncoding(sample.freqComp)
 
-            ################################
-            # ##### Save data on RAM ##### #
-            ################################
+
+            ###############################
+            # ##### Data formatting ##### #
+            ###############################
             ##### Rate coding #####
             datasetSpike[0].append([encoderRateCoding.PoissonRateSpikeAer[:, 0], encoderRateCoding.PoissonRateSpikeAer[:, 1], idxlabel])
 
-            ##### Temporal Contrast #####
+            ##### Temporal contrast #####
             datasetSpike[1].append([encoderTemporalContrast.ThresholdBasedRepresentationSpikeAer[:, 0], encoderTemporalContrast.ThresholdBasedRepresentationSpikeAer[:, 1], idxlabel])
             datasetSpike[2].append([encoderTemporalContrast.StepForwardSpikeAer[:, 0], encoderTemporalContrast.StepForwardSpikeAer[:, 1], idxlabel])
             datasetSpike[3].append([encoderTemporalContrast.ZeroCrossStepForwardSpikeAer[:, 0], encoderTemporalContrast.ZeroCrossStepForwardSpikeAer[:, 1], idxlabel])
@@ -111,14 +113,17 @@ def main(filterbank, channels):
             datasetSpike[6].append([encoderDeconvolutionBased.ModifiedHoughSpikerAlgorithmSpikeAer[:, 0], encoderDeconvolutionBased.ModifiedHoughSpikerAlgorithmSpikeAer[:, 1], idxlabel])
             datasetSpike[7].append([encoderDeconvolutionBased.BenSpikerAlgorithmSpikeAer[:, 0], encoderDeconvolutionBased.BenSpikerAlgorithmSpikeAer[:, 1], idxlabel])
 
-            ##### Global Referenced #####
+            ##### Global referenced #####
             datasetSpike[8].append([encoderGlobalReferenced.PhaseEncodingSpikeAer[:, 0], encoderGlobalReferenced.PhaseEncodingSpikeAer[:, 1], idxlabel])
             datasetSpike[9].append([encoderGlobalReferenced.TimeToFirstSpikeSpikeAer[:, 0], encoderGlobalReferenced.TimeToFirstSpikeSpikeAer[:, 1], idxlabel])
 
             ##### Latency #####
             datasetSpike[10].append([encoderLatency.BurstEncodingSpikeAer[:, 0], encoderLatency.BurstEncodingSpikeAer[:, 1], idxlabel])
-    
-    ##### Save data on numpy file #####
+
+
+    #########################
+    # ##### Save data ##### #
+    #########################
     sourceFolder = f'../../datasets/FreeSpokenDigits/datasetSpike/'
     for i, encoding in enumerate(encodings):
         file = open(f'{sourceFolder}spikeTrains_{filterbank}{channels}{encoding}.bin', 'wb')
@@ -136,7 +141,6 @@ if __name__ == '__main__':
 
     argument = parser.parse_args()
 
-    ##### Parsing unpack #####
     filterbank = argument.filterbank
     channels = argument.channels
 

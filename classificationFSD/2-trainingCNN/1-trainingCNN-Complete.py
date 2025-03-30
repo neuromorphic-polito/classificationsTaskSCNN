@@ -2,30 +2,51 @@ import sys
 sys.path.append('../../')
 import argparse
 import pandas as pd
-from utils import datasetSplitting
-from utils import netModelsComplete
+import torch
+from utils import datasetSplit, DatasetTorch
+from torch.utils.data import DataLoader
+from utils import netModels
+import copy
 
 
-#############################
-# ##### Training loop ##### #
-#############################
 def main(encoding, filterbank, channels, bins, structure):
-    ##### Dataset loading #####
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    ##### Dataset load #####
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSonograms/'
     fileName = f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin'
-    trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'CNN')
+    trainSource, trainTarget, testSource, testTarget, numClass = datasetSplit(fileName, 'CNN')
 
-    ##### Model definitions #####
-    dataShape = trainSource.shape[1:]
-    modelCNN = netModelsComplete(structure, dataShape, numClass)
+    trainSet = DatasetTorch(trainSource, trainTarget, numClass, device)
+    trainSetDL = DataLoader(trainSet, batch_size=1)
+    testSet = DatasetTorch(testSource, testTarget, numClass, device)
 
-    modelCNN.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    ##### Model definition #####
+    dataShape = trainSource.shape
+    modelCNN = netModels(dataShape, structure, numClass).to(device)
+    optimizer = torch.optim.Adam(modelCNN.parameters(), lr=0.001)
 
+    ##### Training loop #####
     running = []
     for _ in range(60):
-        accuracyTrain = modelCNN.fit(x=trainSource, y=trainTarget, epochs=1, batch_size=1, verbose=0)
-        accuracyTest = modelCNN.evaluate(x=testSource, y=testTarget, verbose=0)
-        running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], modelCNN])
+        modelCNN.train()
+        for source, target in trainSetDL:
+            optimizer.zero_grad()
+            loss = torch.nn.CrossEntropyLoss()(modelCNN(source), target)
+            loss.backward()
+            optimizer.step()
+
+        modelCNN.eval()
+        with torch.no_grad():
+            targetTrue = trainSet.target.argmax(axis=1)
+            targetPred = modelCNN(trainSet.source).argmax(axis=1)
+            accuracyTrain = torch.sum(targetPred == targetTrue).item()/targetTrue.shape[0]
+
+            targetTrue = testSet.target.argmax(axis=1)
+            targetPred = modelCNN(testSet.source).argmax(axis=1)
+            accuracyTest = torch.sum(targetPred == targetTrue).item()/targetTrue.shape[0]
+
+        running.append([accuracyTrain, accuracyTest, copy.deepcopy(modelCNN)])
 
     return sorted(running, key=lambda x: (x[1], x[0]), reverse=True)[0]
 
@@ -49,7 +70,7 @@ if __name__ == '__main__':
     structure = argument.structure
     trials = argument.trials
 
-    ##### Check model already calculated #####
+    ##### Verify stored model #####
     columnLabels = ['Filterbank', 'Channels', 'Bins', 'Encoding', 'Structure', 'Train', 'Test']
     flagCompute = True
     sourceFolder = '../../networkPerformance/FreeSpokenDigits/'
@@ -66,9 +87,8 @@ if __name__ == '__main__':
     except:
         pass
 
-    ##### Run training models #####
-    print(encoding, filterbank, channels, bins, structure)
-
+    ##### Training models #####
+    # print(encoding, filterbank, channels, bins, structure)
     if flagCompute == True:
         history = []
         for trial in range(trials):
@@ -77,11 +97,11 @@ if __name__ == '__main__':
 
         accuracyTrain, accuracyTest, modelCNN = sorted(history, key=lambda x: (x[1], x[0]), reverse=True)[0]
 
-        ##### Save data of models #####
+        ##### Save model #####
         sourceFolder = '../../networkModels/FreeSpokenDigits/complete/'
-        modelCNN.save(f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{encoding}.keras')
+        torch.save(modelCNN, f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{encoding}.pth')
 
-        ##### Save data for performance #####
+        ##### Save performance #####
         try:
             performanceData = pd.read_csv(fileName)
             performanceData = performanceData.values.tolist()

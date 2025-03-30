@@ -1,41 +1,25 @@
 import sys
 sys.path.append('../../')
 import argparse
-from utils import datasetSplitting
-from utils import Dataset
-import tensorflow as tf
-from utils import CNN, SNN, Relu
-import numpy as np
 import pandas as pd
-
-
-def spikeLabeling(datasetClass, trueLabel, timeSimulation, spikeTrainNest):
-    ##### Conversion NEO to Numpy format #####
-    numberSamples = trueLabel.size
-    spikeOutput = [np.array(neuron) for neuron in spikeTrainNest[-1]]
-
-    ##### Accuracy #####
-    spikeCount = np.zeros((datasetClass, numberSamples), dtype=int)
-    bins = np.linspace(0, timeSimulation*numberSamples, numberSamples+1)
-    for i in range(datasetClass):
-        for v in np.searchsorted(bins, spikeOutput[i])-1:
-            spikeCount[i, v] += 1
-    prediction = np.argmax(spikeCount, axis=0)
-    accuracy = np.sum(prediction == trueLabel)/numberSamples
-
-    return accuracy
+from utils import datasetSplit
+from utils import Dataset
+import torch
+from utils import SNN
+import numpy as np
+import os
 
 
 ##############################
 # ##### Inference loop ##### #
 ##############################
 def main(encoding, filterbank, channels, bins, structure, reduction):
-    ###############################
-    # ##### Dataset loading ##### #
-    ###############################
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # ##### Dataset load ##### #
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSonograms/'
     fileName = f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin'
-    trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'SNN')
+    trainSource, trainTarget, testSource, testTarget, numClass = datasetSplit(fileName, 'SNN')
 
     timeStimulus = {'duration': 1000.0, 'silence': 30.0}
 
@@ -44,42 +28,59 @@ def main(encoding, filterbank, channels, bins, structure, reduction):
         timeStimulus, 'poisson'
     )
 
-    ##########################################
-    # ##### Load pre-trained CNN model ##### #
-    ##########################################
-    ##### Weigths load #####
+    ##### Load model #####
     sourceFolder = '../../networkModels/FreeSpokenDigits/complete/'
-    modelCNN = tf.keras.models.load_model(f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{encoding}.keras', custom_objects={'Relu': Relu})
+    modelCNN = torch.load(f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{encoding}.pth', weights_only=False)
 
-    modelCNN = CNN(modelCNN)
-
-    ###################################
-    # ##### Simulation with SNN ##### #
-    ###################################
-    reductionCode = [int(i) for i in reduction]
+    # ##### SNN inference ##### #
     ##### Neuron parameter #####
-    lifParams = {
-        'cm': 0.25,  # nF
-        'i_offset': 0.1,  # nA
-        'tau_m': 20.0,  # ms
-        'tau_refrac': 1.0,  # ms
-        'tau_syn_E': 5.0,  # ms
-        'tau_syn_I': 5.0,  # ms
-        'v_reset': -65.0,  # mV
-        'v_rest': -65.0,  # mV
-        'v_thresh': -50.0  # mV
+    lifParam = {
+        'C': 0.25,  # nF
+        'TauM': 20.0,  # ms
+        'Ioffset': 0.1,  # nA
+        'Vrest': -65.0,  # mV
+        'Vthresh': -50.0,  # mV
+        'Vreset': -65.0,  # mV
+        'TauRefrac': 1.0,  # ms
     }
-    timeSimulation = timeStimulus['duration']+timeStimulus['silence']
+    lifVar = {
+        'V': lifParam['Vrest'],  # mV
+        'RefracTime': 0.0,  # ms
+    }
 
-    modelSNN = SNN(dataset.shape, dataset.trainSetSpike, modelCNN, lifParams, reductionCode)
+    ##### Training set inference #####
+    modelSNN = SNN(device, (lifParam, lifVar), 'trainSetSpike', dataset, modelCNN, reduction)
+    timeSteps = int((timeStimulus['duration']+timeStimulus['silence'])*trainTarget.size)
+    modelSNN.model.build()
+    modelSNN.model.load(num_recording_timesteps=timeSteps)
+    while modelSNN.model.timestep < timeSteps:
+        modelSNN.model.step_time()
+    modelSNN.model.pull_recording_buffers_from_device()
+    times, index = modelSNN.layerOutput.spike_recording_data[0]
+    binsPop = np.arange(0, numClass+1, 1)
+    binsTime = np.arange(0, (timeStimulus['duration']+timeStimulus['silence'])*(trainTarget.size+1), (timeStimulus['duration']+timeStimulus['silence']))
+    wta = np.histogram2d(index, times, (binsPop, binsTime))[0]
+    targetTrue = trainTarget
+    targetPred = np.argmax(wta, axis=0)
+    accuracyTrain = np.sum(targetPred == targetTrue)/ targetTrue.shape[0]
+    os.system('rm -r .*_CODE*')
 
-    spikeTrainNest = modelSNN.start_simulation(len(dataset.trainSet), timeStimulus)
-    accuracyTrain = spikeLabeling(numClass, trainTarget, timeSimulation, spikeTrainNest)
-
-    modelSNN = SNN(dataset.shape, dataset.testSetSpike, modelCNN, lifParams, reductionCode)
-
-    spikeTestNest = modelSNN.start_simulation(len(dataset.testSet), timeStimulus)
-    accuracyTest = spikeLabeling(numClass, testTarget, timeSimulation, spikeTestNest)
+    ##### Test set inference #####
+    modelSNN = SNN(device, (lifParam, lifVar), 'testSetSpike', dataset, modelCNN, reduction)
+    timeSteps = int((timeStimulus['duration']+timeStimulus['silence'])*testTarget.size)
+    modelSNN.model.build()
+    modelSNN.model.load(num_recording_timesteps=timeSteps)
+    while modelSNN.model.timestep < timeSteps:
+        modelSNN.model.step_time()
+    modelSNN.model.pull_recording_buffers_from_device()
+    times, index = modelSNN.layerOutput.spike_recording_data[0]
+    binsPop = np.arange(0, numClass+1, 1)
+    binsTime = np.arange(0, (timeStimulus['duration']+timeStimulus['silence'])*(testTarget.size+1), (timeStimulus['duration']+timeStimulus['silence']))
+    wta = np.histogram2d(index, times, (binsPop, binsTime))[0]
+    targetTrue = testTarget
+    targetPred = np.argmax(wta, axis=0)
+    accuracyTest = np.sum(targetPred == targetTrue)/ targetTrue.shape[0]
+    os.system('rm -r .*_CODE*')
 
     return accuracyTrain, accuracyTest, modelSNN.synapsesNum
 
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--channels', help='Frequency decomposition channels', type=int, default=32)
     parser.add_argument('-b', '--bins', help='Binning width', type=int, default=50)
     parser.add_argument('-s', '--structure', help='Network structure', type=str, default='c06c12f2')
-    parser.add_argument('-r', '--reduction', help='Synaptic reduction based on the weights', type=str, default='000000')
+    parser.add_argument('-r', '--reduction', help='Synaptic reduction based on the weights', type=int, default=0)
 
     argument = parser.parse_args()
 
@@ -103,7 +104,7 @@ if __name__ == '__main__':
     structure = argument.structure
     reduction = argument.reduction
 
-    ##### Check model already calculated #####
+    ##### Verify stored model #####
     columnLabels = ['Filterbank', 'Channels', 'Bins', 'Encoding', 'Structure', 'Reduction', 'Synapses', 'Train', 'Test']
     flagCompute = True
     sourceFolder = '../../networkPerformance/FreeSpokenDigits/'
@@ -116,16 +117,17 @@ if __name__ == '__main__':
             (performanceData['Channels'] == channels) &
             (performanceData['Bins'] == bins) &
             (performanceData['Structure'] == structure) &
-            (performanceData['Reduction'] == int(reduction))
+            (performanceData['Reduction'] == reduction)
         ]))
     except:
         pass
 
-    print(encoding, filterbank, channels, bins, structure, reduction)
+    ##### Training models #####
+    # print(encoding, filterbank, channels, bins, structure, reduction)
     if flagCompute == True:
         accuracyTrain, accuracyTest, synapses = main(encoding, filterbank, channels, bins, structure, reduction)
 
-        ##### Save data for performance #####
+        ##### Save performance #####
         try:
             performanceData = pd.read_csv(fileName, dtype=str)
             performanceData = performanceData.values.tolist()

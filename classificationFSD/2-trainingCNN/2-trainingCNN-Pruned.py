@@ -1,53 +1,78 @@
 import sys
 sys.path.append('../../')
 import argparse
-from utils import datasetSplitting
-from utils import netModelsPruned, Relu
-import numpy as np
-import tensorflow as tf
 import pandas as pd
+import torch
+from utils import datasetSplit, DatasetTorch
+from torch.utils.data import DataLoader
+from utils import netModels
+import copy
 
 
-#############################
-# ##### Training loop ##### #
-#############################
 def main(encoding, filterbank, channels, bins, structure, quartile):
-    ##### Dataset loading #####
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    ##### Dataset load #####
     sourceFolder = '../../datasets/FreeSpokenDigits/datasetSonograms/'
     fileName = f'{sourceFolder}sonograms_{filterbank}{channels}x{bins}{encoding}.bin'
-    trainSource, trainTarget, testSource, testTarget, numClass = datasetSplitting(fileName, 'CNN')
+    trainSource, trainTarget, testSource, testTarget, numClass = datasetSplit(fileName, 'CNN')
 
-    ##### Load model network #####
+    trainSet = DatasetTorch(trainSource, trainTarget, numClass, device)
+    trainSetDL = DataLoader(trainSet, batch_size=1)
+    testSet = DatasetTorch(testSource, testTarget, numClass, device)
+
+    ##### Load model #####
     sourceFolder = '../../networkModels/FreeSpokenDigits/complete/'
-    modelCNN = tf.keras.models.load_model(f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{encoding}.keras', custom_objects={'Relu': Relu})
-    layersWeigths = modelCNN.get_weights()
-    mask = modelCNN.get_weights()
+    modelCNN = torch.load(f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{encoding}.pth', weights_only=False)
 
     ##### Quartile calculation #####
-    for i in range(len(layersWeigths)):
+    layersWeigths = modelCNN.state_dict()
+    masks = []
+    for key in layersWeigths:
         threshold = None
         if quartile == 'median':
-            threshold = np.quantile(np.abs(layersWeigths[i].flatten()), 0.5)
+            threshold = torch.quantile(torch.abs(layersWeigths[key].flatten()), 0.5)
         elif quartile == 'upper':
-            threshold = np.quantile(np.abs(layersWeigths[i].flatten()), 0.75)
-        mask[i] = np.where((np.abs(layersWeigths[i]) < threshold), 0.0, 1.0)
-        layersWeigths[i] = np.where((np.abs(layersWeigths[i]) < threshold), 0.0, layersWeigths[i])
+            threshold = torch.quantile(torch.abs(layersWeigths[key].flatten()), 0.75)
+        mask = torch.where(torch.abs(layersWeigths[key]) < threshold, 0.0, 1.0)
+        masks.append(mask)
+        layersWeigths[key] *= mask
+    synapses = torch.sum(torch.hstack([m.flatten() for m in masks]), dtype=int).detach().cpu().item()
 
-    ##### Model definitions #####
-    synapses = np.sum([np.sum(m) for m in mask], dtype=int)
-    dataShape = trainSource.shape[1:]
-    modelCNNPruned = netModelsPruned(structure, dataShape, mask, numClass)
+    ##### Model definition #####
+    dataShape = trainSource.shape
+    modelCNNPruned = netModels(dataShape, structure, numClass).to(device)
+    modelCNNPruned.load_state_dict(layersWeigths)
+    optimizer = torch.optim.Adam(modelCNNPruned.parameters(), lr=0.001)
 
-    modelCNNPruned.set_weights(layersWeigths)
-    modelCNNPruned.compile(optimizer='Adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-
+    ##### Training loop #####
     running = []
-    for _ in range(40):
-        accuracyTrain = modelCNNPruned.fit(x=trainSource, y=trainTarget, epochs=1, batch_size=1, verbose=0)
-        accuracyTest = modelCNNPruned.evaluate(x=testSource, y=testTarget, verbose=0)
-        running.append([accuracyTrain.history['accuracy'][-1], accuracyTest[-1], synapses, modelCNN])
+    for _ in range(20):
+        modelCNNPruned.train()
+        for source, target in trainSetDL:
+            optimizer.zero_grad()
+            loss = torch.nn.CrossEntropyLoss()(modelCNNPruned(source), target)
+            loss.backward()
+            optimizer.step()
 
-    return sorted(running, key=lambda x: (x[1], x[0]), reverse=True)[0]
+            layersWeigths = modelCNNPruned.state_dict()
+            for i, key in enumerate(layersWeigths):
+                layersWeigths[key] *= masks[i]
+            modelCNNPruned.load_state_dict(layersWeigths)
+
+        modelCNNPruned.eval()
+        with torch.no_grad():
+            targetTrue = trainSet.target.argmax(axis=1)
+            targetPred = modelCNNPruned(trainSet.source).argmax(axis=1)
+            accuracyTrain = torch.sum(targetPred == targetTrue).item()/targetTrue.shape[0]
+
+            targetTrue = testSet.target.argmax(axis=1)
+            targetPred = modelCNNPruned(testSet.source).argmax(axis=1)
+            accuracyTest = torch.sum(targetPred == targetTrue).item()/targetTrue.shape[0]
+
+        running.append([accuracyTrain, accuracyTest, synapses, copy.deepcopy(modelCNNPruned)])
+
+    return sorted(running, key=lambda x: (x[1], x[0], x[2]), reverse=True)[0]
 
 
 if __name__ == '__main__':
@@ -59,7 +84,6 @@ if __name__ == '__main__':
     parser.add_argument('-b', '--bins', help='Binning width', type=int, default=50)
     parser.add_argument('-s', '--structure', help='Network structure', type=str, default='c06c12f2')
     parser.add_argument('-q', '--quartile', help='Quartile pruning', type=str, default='median')
-    parser.add_argument('-t', '--trials', help='Trials training', type=int, default=30)
 
     argument = parser.parse_args()
 
@@ -69,10 +93,8 @@ if __name__ == '__main__':
     bins = argument.bins
     structure = argument.structure
     quartile = argument.quartile
-    trials = argument.trials
 
-
-    ##### Check model already calculated #####
+    ##### Verify stored model #####
     columnLabels = ['Filterbank', 'Channels', 'Bins', 'Encoding', 'Structure', 'Quartile', 'Synapses', 'Train', 'Test']
     flagCompute = True
     sourceFolder = '../../networkPerformance/FreeSpokenDigits/'
@@ -90,21 +112,16 @@ if __name__ == '__main__':
     except:
         pass
 
-    ##### Run training models #####
-    print(encoding, filterbank, channels, bins, structure, quartile)
+    ##### Training models #####
+    # print(encoding, filterbank, channels, bins, structure, quartile)
     if flagCompute == True:
-        history = []
-        for trial in range(trials):
-            accuracyTrain, accuracyTest, synapses, modelCNNPruned = main(encoding, filterbank, channels, bins, structure, quartile)
-            history.append((accuracyTrain, accuracyTest, synapses, modelCNNPruned))
+        accuracyTrain, accuracyTest, synapses, modelCNNPruned = main(encoding, filterbank, channels, bins, structure, quartile)
 
-        accuracyTrain, accuracyTest, synapses, modelCNNPruned = sorted(history, key=lambda x: (x[1], x[0]), reverse=True)[0]
-
-        ##### Save data of models #####
+        ##### Save model #####
         sourceFolder = '../../networkModels/FreeSpokenDigits/pruned/'
-        modelCNNPruned.save(f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{quartile}{encoding}.keras')
+        torch.save(modelCNNPruned, f'{sourceFolder}{filterbank}{channels}x{bins}{structure}{quartile}{encoding}.pth')
 
-        ##### Save data for performance #####
+        ##### Save performance #####
         try:
             performanceData = pd.read_csv(fileName)
             performanceData = performanceData.values.tolist()

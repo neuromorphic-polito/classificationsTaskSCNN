@@ -1,155 +1,215 @@
-import pyNN.nest as pynn
+import os
+from pygenn import GeNNModel, init_postsynaptic, init_weight_update
 import numpy as np
 
 
 class SNN:
-    def _kernelMask(self, weights, distribution, code):
-        threshold = np.multiply(distribution, code).max()
-        musk = np.where(np.abs(weights)>threshold, 1, 0)
-        return musk
+    def __init__(self, device, lif, typology, dataset, modelCNN, reduction):
+        #################################
+        # ##### Backend selection ##### #
+        #################################
+        backend = None
+        if 'cpu' in device.type:
+            backend = 'single_threaded_cpu'
+        elif 'cuda' in device.type:
+            os.environ['CUDA_PATH'] = '/usr/local/cuda'
+            backend = 'cuda'
 
-    def __init__(self, shape, spike, modelCNN, lifParameter, filterCode=(0, 0, 0, 0, 0, 0)):
-        self.spike = spike
+        ################################
+        # ##### Model definition ##### #
+        ################################
+        # ##### Model setting ##### #
+        model = GeNNModel(precision='float', model_name='.model', backend=backend)
+        model.dt = 1.0  # ms
 
-        self.layers, self.synapsesNum = [], 0
-        layersShape = []
+        # ##### Neuron parameters ##### #
+        lifParam, lifVar = lif
 
-        ##### PyNN initialization #####
-        pynn.setup(timestep=1.0, threads=7)
+        # ##### Network definition ##### #
+        layerPop, layerSyn = [], []
 
-        ##### Input layer #####
-        dataRow, dataCol = shape
-        neuronNum = dataRow*dataCol
-        layerInput = pynn.Population(neuronNum, pynn.SpikeSourceArray, {'spike_times': spike})
-        self.layers.append([layerInput])
-        layersShape.append({'shape': shape, 'neuronNum': neuronNum})
+        timeStim = None
+        if 'trainSetSpike' in typology:
+            timeStim = dataset.trainSetSpike
+        elif 'testSetSpike' in typology:
+            timeStim = dataset.testSetSpike
+        timeEnd = np.cumsum([len(spike) for spike in timeStim])
+        timeStart = np.concatenate(([0], timeEnd[:-1]))
+        timeSpike = np.concatenate(timeStim)
 
-        idxLayer = 0  # previous index layer
-        for layer in modelCNN.layers:
-            print(layer.type)
+        # ##### Neuron populations ##### #
+        sizeInRow, sizeInCol = dataset.shape
+        popStim = model.add_neuron_population(
+            pop_name=f'stim',
+            num_neurons=sizeInRow*sizeInCol,
+            neuron='SpikeSourceArray',
+            params={}, vars={"startSpike": timeStart, "endSpike": timeEnd}
+        )
+        popStim.extra_global_params["spikeTimes"].set_init_values(timeSpike)
+        popStim.spike_recording_enabled = True
+        layerPop.append([popStim])
 
-            if layer.type == 'conv2d':
-                inputRow, inputCol = layersShape[idxLayer]['shape']
-                kernelRow, kernelCol = layer.sizeKernel
-                outputRow, outputCol = inputRow-kernelRow+1, inputCol-kernelCol+1
-                neuronNum = outputRow*outputCol
+        flatFlag = False
+        self.synapsesNum = 0
+        for name, param in modelCNN.named_modules():
+            if 'conv' in name:
+                layerPop.append([])
 
-                self.layers.append([])
-                for idxOutput in range(layer.featureOutput):
-                    layerConv = pynn.Population(neuronNum, pynn.IF_curr_exp, lifParameter)
+                # ##### Neuron populations ##### #
+                chOut, chIn, kernelRow, kernelCol = param.weight.shape
+                sizeOutRow, sizeOutCol = sizeInRow-kernelRow+1, sizeInCol-kernelCol+1
 
-                    for idxInput in range(len(self.layers[idxLayer])):
-                        weights = layer.weights[idxOutput][idxInput]
-                        weightsMask = self._kernelMask(weights, layer.distribution, filterCode)
-                        weights *= weightsMask
+                for o in range(chOut):
+                    layerPop[-1].append(
+                        model.add_neuron_population(
+                            pop_name=f'pop{name}{o}',
+                            num_neurons=sizeOutRow*sizeOutCol,
+                            neuron='LIF',
+                            params=lifParam, vars=lifVar,
+                        )
+                    )
 
-                        synapseExcit, synapseInhib = [], []
-                        for oRow in range(outputRow):
-                            for oCol in range(outputCol):
-                                idxTarget = oCol+oRow*outputCol
-                                for kRow in range(kernelRow):
-                                    for kCol in range(kernelCol):
-                                        weight = weights[kRow, kCol]
-                                        idxSource = oCol+kCol+(oRow+kRow)*inputCol
-                                        if weight > 0:
-                                            synapseExcit.append((idxSource, idxTarget, weight, 1.0))
-                                        elif weight < 0:
-                                            synapseInhib.append((idxSource, idxTarget, weight, 1.0))
-                        pynn.Projection(self.layers[idxLayer][idxInput], layerConv, pynn.FromListConnector(synapseExcit), receptor_type='excitatory')
-                        pynn.Projection(self.layers[idxLayer][idxInput], layerConv, pynn.FromListConnector(synapseInhib), receptor_type='inhibitory')
-                        self.synapsesNum += len(synapseExcit)+len(synapseInhib)
+                # ##### Synaptic connections ##### #
+                connectionBase = []
+                for iRow in range(sizeOutRow):
+                    for iCol in range(sizeOutCol):
+                        idxTarget = iCol+iRow*sizeOutCol
+                        for kRow in range(kernelRow):
+                            for kCol in range(kernelCol):
+                                idxSource = (iRow+kRow)*sizeInCol+iCol+kCol
+                                connectionBase.append([idxSource, idxTarget])
+                connectionBase = np.array(connectionBase)
 
-                    self.layers[-1].append(layerConv)
-                layersShape.append({'shape': (outputRow, outputCol), 'neuronNum': neuronNum})
+                weights = param.weight.detach().cpu().numpy()
+                if reduction > 0:
+                    threshold = np.quantile(np.abs(weights), reduction/100)
+                    weights = np.where(np.abs(weights)>threshold, weights, 0.0)
 
-            elif layer.type == 'pool2d':
-                inputRow, inputCol = layersShape[idxLayer]['shape']
-                poolRow, poolCol = layer.sizePool
-                outputRow, outputCol = int(inputRow/poolRow), int(inputCol/poolCol)
-                neuronNum = outputRow*outputCol
+                for i in range(chIn):
+                    for o in range(chOut):
+                        popSource = layerPop[-2][i]
+                        popTarget = layerPop[-1][o]
 
-                self.layers.append([])
-                for idxInput in range(len(self.layers[idxLayer])):
-                    layerPool = pynn.Population(neuronNum, pynn.IF_curr_exp, lifParameter)
-                    weight = layer.weights[0, 0]
+                        weight = np.tile(weights[o, i].flatten(), sizeOutRow*sizeOutCol).reshape((-1, 1))
+                        connection = np.hstack([connectionBase, weight])
+                        connection = connection[connection[:, -1] != 0]
 
-                    synapseExcit = []
-                    for oRow in range(outputRow):
-                        for oCol in range(outputCol):
-                            idxTarget = oCol+oRow*outputCol
-                            for pRow in range(poolRow):
-                                for pCol in range(poolCol):
-                                    idxSource = oCol*poolCol+pCol+(oRow*poolRow+pRow)*inputCol
-                                    synapseExcit.append((idxSource, idxTarget, weight, 1.0))
+                        synPre = connection[:, 0].astype(int)
+                        synPos = connection[:, 1].astype(int)
+                        weight = connection[:, 2]
+                        self.synapsesNum += weight.size
+                        if weight.size > 0:
+                            layerSyn.append(
+                                model.add_synapse_population(
+                                    pop_name=f'syn{name}_{i}_{o}', matrix_type='SPARSE',
+                                    source=popSource, target=popTarget,
+                                    postsynaptic_init=init_postsynaptic('ExpCurr', {"tau": 5.0}),
+                                    weight_update_init=init_weight_update('StaticPulse', {}, {'g': weight}),
+                                )
+                            )
+                            layerSyn[-1].set_sparse_connections(synPre, synPos)
+                sizeInRow, sizeInCol = sizeOutRow, sizeOutCol
+            elif 'pool' in name:
+                layerPop.append([])
 
-                    pynn.Projection(self.layers[idxLayer][idxInput], layerPool, pynn.FromListConnector(synapseExcit), receptor_type='excitatory')
-                    self.synapsesNum += len(synapseExcit)
+                # ##### Neuron populations ##### #
+                ch, kernel = len(layerPop[-2]), param.kernel_size
+                sizeOutRow, sizeOutCol = sizeInRow//kernel, sizeInCol//kernel
 
-                    self.layers[-1].append(layerPool)
-                layersShape.append({'shape': (outputRow, outputCol), 'neuronNum': neuronNum})
-            elif layer.type == 'dense':
-                inputRow, inputCol = layersShape[idxLayer]['shape']
-                neuronNumInp = inputRow*inputCol
+                for o in range(ch):
+                    layerPop[-1].append(
+                        model.add_neuron_population(
+                            pop_name=f'pop{name}{o}',
+                            num_neurons=sizeOutRow*sizeOutCol,
+                            neuron='LIF',
+                            params=lifParam, vars=lifVar,
+                        )
+                    )
 
-                neuronNumOut = layer.output
-                layerDense = pynn.Population(neuronNumOut, pynn.IF_curr_exp, lifParameter)
+                # ##### Synaptic connections ##### #
+                connection = []
+                for iRow in range(sizeOutRow):
+                    for iCol in range(sizeOutCol):
+                        idxTarget = iCol+iRow*sizeOutCol
+                        for kRow in range(kernel):
+                            for kCol in range(kernel):
+                                idxSource = iCol*kernel+kCol+(iRow*kernel+kRow)*sizeInCol
+                                connection.append([idxSource, idxTarget])
+                connection = np.array(connection)
 
-                if neuronNumInp != 0:
-                    weights = layer.weights
+                for i in range(ch):
+                    popSource = layerPop[-2][i]
+                    popTarget = layerPop[-1][i]
 
-                    for idxInput in range(len(self.layers[idxLayer])):
-                        weightsSection = weights[:, idxInput*neuronNumInp:(idxInput+1)*neuronNumInp]
-                        weightsMask = self._kernelMask(weightsSection, layer.distribution, filterCode)
-                        weightsSection *= weightsMask
+                    synPre = connection[:, 0]
+                    synPos = connection[:, 1]
+                    weight = np.tile(np.ones(kernel**2)/(kernel**2), sizeOutRow*sizeOutCol)
+                    self.synapsesNum += weight.size
+                    layerSyn.append(
+                        model.add_synapse_population(
+                            pop_name=f'syn{name}{i}', matrix_type='SPARSE',
+                            source=popSource, target=popTarget,
+                            postsynaptic_init=init_postsynaptic('ExpCurr', {"tau": 5.0}),
+                            weight_update_init=init_weight_update('StaticPulse', {}, {'g': weight}),
+                        )
+                    )
+                    layerSyn[-1].set_sparse_connections(synPre, synPos)
+                sizeInRow, sizeInCol = sizeOutRow, sizeOutCol
+            elif 'flat' in name:
+                flatFlag = True
+            elif 'linear' in name:
+                layerPop.append([])
 
-                        synapseExcit, synapseInhib = [], []
-                        for io in range(neuronNumOut):
-                            for ii in range(neuronNumInp):
-                                weight = weightsSection[io, ii]
-                                if weight > 0:
-                                    synapseExcit.append((ii, io, weight, 1.0))
-                                elif weight < 0:
-                                    synapseInhib.append((ii, io, weight, 1.0))
+                # ##### Neuron populations ##### #
+                sizeIn, sizeOut = param.in_features, param.out_features
 
-                        pynn.Projection(self.layers[idxLayer][idxInput], layerDense, pynn.FromListConnector(synapseExcit), receptor_type='excitatory')
-                        pynn.Projection(self.layers[idxLayer][idxInput], layerDense, pynn.FromListConnector(synapseInhib), receptor_type='inhibitory')
-                        self.synapsesNum += len(synapseExcit)+len(synapseInhib)
+                layerPop[-1].append(
+                    model.add_neuron_population(
+                        pop_name=f'pop{name}',
+                        num_neurons=sizeOut,
+                        neuron='LIF',
+                        params=lifParam, vars=lifVar,
+                    )
+                )
+
+                weights = param.weight.detach().cpu().numpy()
+                if reduction > 0:
+                    threshold = np.quantile(np.abs(weights), reduction/100)
+                    weights = np.where(np.abs(weights) > threshold, weights, 0.0)
+
+                if flatFlag is True:
+                    # ##### Synaptic connections ##### #
+                    for i in range(len(layerPop[-2])):
+                        popSource = layerPop[-2][i]
+                        popTarget = layerPop[-1][0]
+
+                        weight = weights[:, i*(sizeInRow*sizeInCol):(i+1)*(sizeInRow*sizeInCol)].T.flatten()
+                        self.synapsesNum += weight.size
+                        layerSyn.append(
+                            model.add_synapse_population(
+                                pop_name=f'syn{name}{i}', matrix_type='DENSE',
+                                source=popSource, target=popTarget,
+                                postsynaptic_init=init_postsynaptic('ExpCurr', {"tau": 5.0}),
+                                weight_update_init=init_weight_update('StaticPulse', {}, {'g': weight}),
+                            )
+                        )
+                    flatFlag = False
                 else:
-                    neuronNumInp = inputRow
-                    weights = layer.weights
-                    weightsMask = self._kernelMask(weights, layer.distribution, filterCode)
-                    weights *= weightsMask
+                    # ##### Synaptic connections ##### #
+                    popSource = layerPop[-2][0]
+                    popTarget = layerPop[-1][0]
 
-                    synapseExcit, synapseInhib = [], []
-                    for io in range(neuronNumOut):
-                        for ii in range(neuronNumInp):
-                            weight = weights[io, ii]
-                            if weight > 0:
-                                synapseExcit.append((ii, io, weight, 1.0))
-                            elif weight < 0:
-                                synapseInhib.append((ii, io, weight, 1.0))
+                    weight = weights.T.flatten()
+                    self.synapsesNum += weight.size
+                    layerSyn.append(
+                        model.add_synapse_population(
+                            pop_name=f'syn{name}', matrix_type='DENSE',
+                            source=popSource, target=popTarget,
+                            postsynaptic_init=init_postsynaptic('ExpCurr', {"tau": 5.0}),
+                            weight_update_init=init_weight_update('StaticPulse', {}, {'g': weight}),
+                        )
+                    )
 
-                    pynn.Projection(self.layers[idxLayer][0], layerDense, pynn.FromListConnector(synapseExcit), receptor_type='excitatory')
-                    pynn.Projection(self.layers[idxLayer][0], layerDense, pynn.FromListConnector(synapseInhib), receptor_type='inhibitory')
-                    self.synapsesNum += len(synapseExcit)+len(synapseInhib)
-
-                self.layers.append([layerDense])
-                layersShape.append({'shape': (neuronNumOut, 0), 'neuronNum': neuronNumOut})
-            idxLayer += 1
-
-    def plot_spike_train(self):
-        # plot spike train in input of SNN
-        import matplotlib.pyplot as plt
-        plt.eventplot(self.spike)
-        plt.show()
-
-    def start_simulation(self, numberSamples, timeStimulus):
-        layers = [layer[0] for layer in self.layers]
-        [layer.record('spikes') for layer in layers]
-
-        pynn.run((timeStimulus['duration']+timeStimulus['silence'])*numberSamples)
-
-        spikeTrain = [layer.get_data().segments[0].spiketrains for layer in layers]
-
-        pynn.end()
-        return spikeTrain
+        layerPop[-1][-1].spike_recording_enabled = True
+        self.model = model
+        self.layerOutput = layerPop[-1][-1]

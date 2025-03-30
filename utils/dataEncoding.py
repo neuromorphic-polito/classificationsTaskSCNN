@@ -2,7 +2,7 @@ import copy
 import numpy as np
 
 
-class RateCoding():
+class RateCoding:
 
     def __init__(self, settings):
         self.settings = settings
@@ -40,7 +40,7 @@ class RateCoding():
         self.PoissonRateSpikeAer = np.argwhere(self.PoissonRateSpike == True)
 
 
-class TemporalContrast():
+class TemporalContrast:
 
     def __init__(self, settings):
         self.settings = settings
@@ -141,7 +141,7 @@ class TemporalContrast():
         self.MovingWindowSpikeAer = np.argwhere(self.MovingWindowSpike == True)
 
 
-class DeconvolutionBased():
+class DeconvolutionBased:
 
     def __init__(self, settings):
         self.settings = settings
@@ -236,7 +236,7 @@ class DeconvolutionBased():
         self.BenSpikerAlgorithmSpikeAer = np.argwhere(self.BenSpikerAlgorithmSpike == True)
 
 
-class GlobalReferenced():
+class GlobalReferenced:
     def __init__(self, settings):
         self.settings = settings
 
@@ -303,7 +303,7 @@ class GlobalReferenced():
         self.TimeToFirstSpikeSpikeAer = np.argwhere(self.TimeToFirstSpikeSpike == True)
 
 
-class Latency():
+class Latency:
 
     def __init__(self, settings):
         self.settings = settings

@@ -10,5 +10,5 @@ utils/dataEncodingPerformance.py
 4-analyses
 *.wav
 *.bin
-*.keras
+*.pth
 *.csv

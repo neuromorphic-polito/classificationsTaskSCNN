@@ -1,71 +1,77 @@
-import tensorflow as tf
+import torch
 
 
-class Masking(tf.keras.constraints.Constraint):
-  def __init__(self, mask=0):
-    self.mask = mask
+class netModels(torch.nn.Module):
+    def __init__(self, shape, structure, numClass):
+        super().__init__()
+        if structure == 'c06c12f2':
+            self.conv1 = torch.nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5, bias=False)
+            self.relu1 = torch.nn.ReLU()
+            self.pool1 = torch.nn.AvgPool2d(2)
+            self.conv2 = torch.nn.Conv2d(in_channels=6, out_channels=12, kernel_size=5, bias=False)
+            self.relu2 = torch.nn.ReLU()
+            self.pool2 = torch.nn.AvgPool2d(2)
+            self.flat  = torch.nn.Flatten()
 
-  def __call__(self, w):
-    return tf.multiply(w, self.mask)
+            with torch.no_grad():
+                shape = list(shape)
+                shape[0] = 1
+                source = torch.zeros(shape)
 
+                features = self.conv1(source)
+                features = self.relu1(features)
+                features = self.pool1(features)
+                features = self.conv2(features)
+                features = self.relu2(features)
+                features = self.pool2(features)
+                feature  = self.flat(features)
+                shape = feature.shape[1]
 
-def Relu(inputs):
-    S = 201.0
-    tau_syn = 0.005
-    return tf.multiply(S*tau_syn, tf.math.maximum(0.0, inputs))
+            self.linear1 = torch.nn.Linear(in_features=shape, out_features=768, bias=False)
+            self.active1 = torch.nn.ReLU()
+            self.linear2 = torch.nn.Linear(in_features=768, out_features=numClass, bias=False)
+            self.active2 = torch.nn.Softmax(1)
+        elif structure == 'c12c24f2':
+            self.conv1 = torch.nn.Conv2d(in_channels=1, out_channels=12, kernel_size=5, bias=False)
+            self.relu1 = torch.nn.ReLU()
+            self.pool1 = torch.nn.AvgPool2d(2)
+            self.conv2 = torch.nn.Conv2d(in_channels=12, out_channels=24, kernel_size=5, bias=False)
+            self.relu2 = torch.nn.ReLU()
+            self.pool2 = torch.nn.AvgPool2d(2)
+            self.flat = torch.nn.Flatten()
 
+            with torch.no_grad():
+                shape = list(shape)
+                shape[0] = 1
+                source = torch.zeros(shape)
 
-def netModelsComplete(structure, dataShape, datasetClass):
-    modelCNN = None
-    if structure == 'c06c12f2':
-        modelCNN = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(filters=6, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation=Relu, use_bias=False, input_shape=dataShape),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Conv2D(filters=12, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation=Relu, use_bias=False),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=768, activation='relu', use_bias=False),
-            tf.keras.layers.Dense(units=datasetClass, activation='softmax', use_bias=False)
-        ])
-    elif structure == 'c12c24f2':
-        modelCNN = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(filters=12, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation=Relu, use_bias=False, input_shape=dataShape),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Conv2D(filters=24, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation=Relu, use_bias=False),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=768, activation='relu', use_bias=False),
-            tf.keras.layers.Dense(units=datasetClass, activation='softmax', use_bias=False)
-        ])
-    else:
-        raise Exception('Inserted structure not available')
+                features = self.conv1(source)
+                features = self.relu1(features)
+                features = self.pool1(features)
+                features = self.conv2(features)
+                features = self.relu2(features)
+                features = self.pool2(features)
+                feature = self.flat(features)
+                shape = feature.shape[1]
 
-    return modelCNN
+            self.linear1 = torch.nn.Linear(in_features=shape, out_features=768, bias=False)
+            self.active1 = torch.nn.ReLU()
+            self.linear2 = torch.nn.Linear(in_features=768, out_features=numClass, bias=False)
+            self.active2 = torch.nn.Softmax(1)
+        else:
+            raise Exception('Inserted structure not available')
 
+    def forward(self, source):
+        features = self.conv1(source)
+        features = self.relu1(features*201.0*0.005)  # S = 201.0 tau_syn = 0.005
+        features = self.pool1(features)
+        features = self.conv2(features)
+        features = self.relu2(features*201.0*0.005)  # S = 201.0 tau_syn = 0.005
+        features = self.pool2(features)
+        features = self.flat(features)
+        features = self.linear1(features)
+        features = self.active1(features)
+        features = self.linear2(features)
+        target   = self.active2(features)
 
-def netModelsPruned(structure, dataShape, mask, datasetClass):
-    modelCNN = None
-    if structure == 'c06c12f2':
-        modelCNN = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(filters=6, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation=Relu, use_bias=False, kernel_constraint=Masking(mask[0]), input_shape=dataShape),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Conv2D(filters=12, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation=Relu, use_bias=False, kernel_constraint=Masking(mask[1])),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=768, activation='relu', use_bias=False, kernel_constraint=Masking(mask[2])),
-            tf.keras.layers.Dense(units=datasetClass, activation='softmax', use_bias=False, kernel_constraint=Masking(mask[3]))
-        ])
-    elif structure == 'c12c24f2':
-        modelCNN = tf.keras.models.Sequential([
-            tf.keras.layers.Conv2D(filters=12, kernel_size=(5, 5), strides=(1, 1), padding='valid', activation=Relu, use_bias=False, kernel_constraint=Masking(mask[0]), input_shape=dataShape),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Conv2D(filters=24, kernel_size=(3, 3), strides=(1, 1), padding='valid', activation=Relu, use_bias=False, kernel_constraint=Masking(mask[1])),
-            tf.keras.layers.AveragePooling2D(pool_size=(2, 2), padding='valid'),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(units=768, activation='relu', use_bias=False, kernel_constraint=Masking(mask[2])),
-            tf.keras.layers.Dense(units=datasetClass, activation='softmax', use_bias=False, kernel_constraint=Masking(mask[3]))
-        ])
-    else:
-        raise Exception('Inserted structure not available')
-
-    return modelCNN
+        return target

@@ -36,10 +36,10 @@ freqCentr = np.array([freqMin*(2**(ch/octave)) for ch in range(channels)])
 freqPoles = np.array([(freq*(2**(-1/(2*octave))), (freq*(2**(1/(2*octave))))) for freq in freqCentr])
 freqPoles[-1, 1] = sample.fs/2*0.99999
 
-##### Butterworth filter banks #####
+##### Butterworth filter bank #####
 order = 2
 plt.figure()
-plt.title('Butterworth filter banks')
+plt.title('Butterworth filter bank')
 filterbankButter = []
 for freqLow, freqHigh in freqPoles:
     num, den = butter(N=order, Wn=(freqLow, freqHigh), btype='band', fs=sample.fs)
@@ -49,10 +49,10 @@ for freqLow, freqHigh in freqPoles:
 plt.xlabel('f(Hz)')
 plt.ylabel('Gain')
 
-##### Gammatone filterbank #####
+##### Gammatone filter bank #####
 order = 1
 plt.figure()
-plt.title('Gammatone filter banks')
+plt.title('Gammatone filter bank')
 filterbankGammatone = []
 for freq in freqCentr:
     num, den = gammatone(order=order, freq=freq, ftype='fir', fs=sample.fs)
@@ -63,9 +63,9 @@ plt.xlabel('f(Hz)')
 plt.ylabel('Gain')
 
 
-####################################################
-# ##### Frequency decomposition and Plotting ##### #
-####################################################
+#######################################
+# ##### Frequency decomposition ##### #
+#######################################
 ##### Spectrogram #####
 sample.decomposition(filterbankButter)
 spectrogram = np.absolute(sample.freqComp)
