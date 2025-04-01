@@ -9,11 +9,11 @@ encodings = ['RATE', 'TBR', 'SF', 'ZCSF', 'MW', 'HSA', 'MHSA', 'BSA', 'PHASE', '
 
 ##### Binning settings #####
 configurations = [
-    ('butterworth', 32, 50),  # (32, 70)big bins  (32, 10)small bins
-    ('gammatone', 32, 50),
-
     ('butterworth', 32, 32),
     ('gammatone', 32, 32),
+
+    ('butterworth', 32, 50),  # (32, 70)big bins  (32, 10)small bins
+    ('gammatone', 32, 50),
 
     ('butterworth', 64, 50),
     ('gammatone', 64, 50),

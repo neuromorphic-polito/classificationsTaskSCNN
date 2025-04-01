@@ -7,7 +7,6 @@ nohup.out
 
 utils/dataEncodingPerformance.py
 
-4-analyses
 *.wav
 *.bin
 *.pth
