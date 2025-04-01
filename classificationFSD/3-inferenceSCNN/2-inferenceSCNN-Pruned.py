@@ -105,19 +105,19 @@ if __name__ == '__main__':
     quantile = argument.quantile
 
     ##### Verify stored model #####
-    columnLabels = ['Filterbank', 'Channels', 'Bins', 'Encoding', 'Structure', 'Quantile', 'Synapses', 'Train', 'Test']
+    columnLabels = ['filterbank', 'channels', 'bins', 'encoding', 'structure', 'quantile', 'synapses', 'train', 'test']
     flagCompute = True
     sourceFolder = '../../networkPerformance/FreeSpokenDigits/'
     fileName = f'{sourceFolder}SCNN-ModelPruned.csv'
     try:
         performanceData = pd.read_csv(fileName)
         flagCompute = not bool(len(performanceData[
-            (performanceData['Encoding'] == encoding) &
-            (performanceData['Filterbank'] == filterbank) &
-            (performanceData['Channels'] == channels) &
-            (performanceData['Bins'] == bins) &
-            (performanceData['Structure'] == structure) &
-            (performanceData['Quantile'] == quantile)
+            (performanceData['encoding'] == encoding) &
+            (performanceData['filterbank'] == filterbank) &
+            (performanceData['channels'] == channels) &
+            (performanceData['bins'] == bins) &
+            (performanceData['structure'] == structure) &
+            (performanceData['quantile'] == quantile)
         ]))
     except:
         pass

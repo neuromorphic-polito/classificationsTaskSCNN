@@ -9,7 +9,7 @@ from utils import netModels
 import copy
 
 
-def main(datasetName, encoding, filterbank, channels, bins, structure, quartile):
+def main(datasetName, encoding, filterbank, channels, bins, structure, quantile):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     ##### Dataset load #####
@@ -25,14 +25,14 @@ def main(datasetName, encoding, filterbank, channels, bins, structure, quartile)
     sourceFolder = '../../networkModels/HumanActivityRecognition/complete/'
     modelCNN = torch.load(f'{sourceFolder}{datasetName}{filterbank}{channels}x{bins}{structure}{encoding}.pth', weights_only=False)
 
-    ##### Quartile calculation #####
+    ##### Quantile calculation #####
     layersWeigths = modelCNN.state_dict()
     masks = []
     for key in layersWeigths:
         threshold = None
-        if quartile == 'median':
+        if quantile == 'median':
             threshold = torch.quantile(torch.abs(layersWeigths[key].flatten()), 0.5)
-        elif quartile == 'upper':
+        elif quantile == 'upper':
             threshold = torch.quantile(torch.abs(layersWeigths[key].flatten()), 0.75)
         mask = torch.where(torch.abs(layersWeigths[key]) < threshold, 0.0, 1.0)
         masks.append(mask)
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--channels', help='Frequency decomposition channels', type=int, default=4)
     parser.add_argument('-b', '--bins', help='Binning width', type=int, default=24)
     parser.add_argument('-s', '--structure', help='Network structure', type=str, default='c06c12f2')
-    parser.add_argument('-q', '--quartile', help='Quartile pruning', type=str, default='median')
+    parser.add_argument('-q', '--quantile', help='Quantile pruning', type=str, default='median')
 
     argument = parser.parse_args()
 
@@ -94,43 +94,43 @@ if __name__ == '__main__':
     channels = argument.channels
     bins = argument.bins
     structure = argument.structure
-    quartile = argument.quartile
+    quantile = argument.quantile
 
     ##### Verify stored model #####
-    columnLabels = ['Filterbank', 'Channels', 'Bins', 'Encoding', 'Structure', 'Quartile', 'Synapses', 'Train', 'Test']
+    columnLabels = ['filterbank', 'channels', 'bins', 'encoding', 'structure', 'quantile', 'synapses', 'train', 'test']
     flagCompute = True
     sourceFolder = '../../networkPerformance/HumanActivityRecognition/'
     fileName = f'{sourceFolder}{datasetName}CNN-ModelPruned.csv'
     try:
         performanceData = pd.read_csv(fileName)
         flagCompute = not bool(len(performanceData[
-            (performanceData['Encoding'] == encoding) &
-            (performanceData['Filterbank'] == filterbank) &
-            (performanceData['Channels'] == channels) &
-            (performanceData['Bins'] == bins) &
-            (performanceData['Structure'] == structure) &
-            (performanceData['Quartile'] == quartile)
+            (performanceData['encoding'] == encoding) &
+            (performanceData['filterbank'] == filterbank) &
+            (performanceData['channels'] == channels) &
+            (performanceData['bins'] == bins) &
+            (performanceData['structure'] == structure) &
+            (performanceData['quantile'] == quantile)
         ]))
     except:
         pass
 
     ##### Training models #####
-    # print(datasetName, encoding, filterbank, channels, bins, structure, quartile)
+    # print(datasetName, encoding, filterbank, channels, bins, structure, quantile)
     if flagCompute == True:
-        accuracyTrain, accuracyTest, synapses, modelCNNPruned = main(datasetName, encoding, filterbank, channels, bins, structure, quartile)
+        accuracyTrain, accuracyTest, synapses, modelCNNPruned = main(datasetName, encoding, filterbank, channels, bins, structure, quantile)
 
         ##### Save model #####
         sourceFolder = '../../networkModels/HumanActivityRecognition/pruned/'
-        torch.save(modelCNNPruned, f'{sourceFolder}{datasetName}{filterbank}{channels}x{bins}{structure}{quartile}{encoding}.pth')
+        torch.save(modelCNNPruned, f'{sourceFolder}{datasetName}{filterbank}{channels}x{bins}{structure}{quantile}{encoding}.pth')
 
         ##### Save performance #####
         try:
             performanceData = pd.read_csv(fileName)
             performanceData = performanceData.values.tolist()
-            performanceData.append([filterbank, channels, bins, encoding, structure, quartile, synapses, accuracyTrain, accuracyTest])
+            performanceData.append([filterbank, channels, bins, encoding, structure, quantile, synapses, accuracyTrain, accuracyTest])
             performanceData = pd.DataFrame(performanceData, index=None, columns=columnLabels)
             performanceData.to_csv(fileName, index=False)
         except:
-            performanceData = [[filterbank, channels, bins, encoding, structure, quartile, synapses, accuracyTrain, accuracyTest]]
+            performanceData = [[filterbank, channels, bins, encoding, structure, quantile, synapses, accuracyTrain, accuracyTest]]
             performanceData = pd.DataFrame(performanceData, index=None, columns=columnLabels)
             performanceData.to_csv(fileName, index=False)

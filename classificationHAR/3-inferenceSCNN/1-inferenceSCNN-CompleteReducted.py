@@ -107,19 +107,19 @@ if __name__ == '__main__':
     reduction = argument.reduction
 
     ##### Verify stored model #####
-    columnLabels = ['Filterbank', 'Channels', 'Bins', 'Encoding', 'Structure', 'Reduction', 'Synapses', 'Train', 'Test']
+    columnLabels = ['filterbank', 'channels', 'bins', 'encoding', 'structure', 'reduction', 'synapses', 'train', 'test']
     flagCompute = True
     sourceFolder = '../../networkPerformance/HumanActivityRecognition/'
     fileName = f'{sourceFolder}{datasetName}SCNN-ModelCompleteReduced.csv'
     try:
         performanceData = pd.read_csv(fileName)
         flagCompute = not bool(len(performanceData[
-            (performanceData['Encoding'] == encoding) &
-            (performanceData['Filterbank'] == filterbank) &
-            (performanceData['Channels'] == channels) &
-            (performanceData['Bins'] == bins) &
-            (performanceData['Structure'] == structure) &
-            (performanceData['Reduction'] == reduction)
+            (performanceData['encoding'] == encoding) &
+            (performanceData['filterbank'] == filterbank) &
+            (performanceData['channels'] == channels) &
+            (performanceData['bins'] == bins) &
+            (performanceData['structure'] == structure) &
+            (performanceData['reduction'] == reduction)
         ]))
     except:
         pass
