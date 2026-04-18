@@ -6,7 +6,6 @@ import numpy as np
 from scipy.signal import butter, gammatone, freqz
 from utils import RateCoding, TemporalContrast, DeconvolutionBased, GlobalReferenced, Latency
 from scipy.signal.windows import *
-from utils import spikeEfficiency
 import matplotlib.pyplot as plt
 
 
@@ -165,15 +164,5 @@ for index in range(indexEncoding):
     plt.yticks([])
     plt.ylabel('Channel')
     plt.xlabel('Time')
-
-##### Spike efficiency #####
-plt.figure()
-plt.title('Efficiency')
-for index in range(indexEncoding):
-    efficiency = spikeEfficiency(spike[index])
-    plt.plot(efficiency, '-o')
-plt.xlabel('Channel')
-plt.ylabel('Efficiency')
-plt.legend(labelEncoding)
 
 plt.show()

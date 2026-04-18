@@ -5,8 +5,6 @@ test
 remoteConda
 nohup.out
 
-utils/dataEncodingPerformance.py
-
 *.wav
 *.bin
 *.pth

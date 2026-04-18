@@ -8,8 +8,6 @@ from utils.dataEncoding import DeconvolutionBased
 from utils.dataEncoding import GlobalReferenced
 from utils.dataEncoding import Latency
 
-from utils.dataEncodingPerformance import spikeEfficiency
-
 from utils.dataUtility import datasetSplit
 from utils.dataUtility import DatasetTorch
 
