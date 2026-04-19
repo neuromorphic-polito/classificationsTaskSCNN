@@ -30,7 +30,7 @@ for encoding in encodings:
         filterbank, channel, bins = configuration
         for structure in structures:
             for quartile in quantile:
-                command = f'python -u 1-inferenceSCNN-CompleteReducted.py -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -r={quartile}'
+                command = f'python3 -u 1-inferenceSCNN-CompleteReducted.py -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -r={quartile}'
                 print(command)
                 os.system(command)
 
@@ -41,6 +41,6 @@ for encoding in encodings:
         filterbank, channel, bins = configuration
         for structure in structures:
             for quartile in quantile:
-                command = f'python -u 2-inferenceSCNN-Pruned.py -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -q={quartile}'
+                command = f'python3 -u 2-inferenceSCNN-Pruned.py -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -q={quartile}'
                 print(command)
                 os.system(command)

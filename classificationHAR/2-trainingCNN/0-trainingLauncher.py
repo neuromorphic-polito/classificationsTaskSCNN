@@ -30,10 +30,10 @@ for subset in subsets:
         for configuration in configurations:
             filterbank, channel, bins = configuration
             for structure in structures:
-                command = f'python 1-trainingCNN-Complete.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -t={trials}'
+                command = f'python3 1-trainingCNN-Complete.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -t={trials}'
                 print(command)
                 os.system(command)
                 for quartile in quantile:
-                    command = f'python 2-trainingCNN-Pruned.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -q={quartile}'
+                    command = f'python3 2-trainingCNN-Pruned.py -n={subset} -e={encoding} -f={filterbank} -c={channel} -b={bins} -s={structure} -q={quartile}'
                     print(command)
                     os.system(command)

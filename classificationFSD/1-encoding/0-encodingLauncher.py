@@ -10,7 +10,7 @@ filterbanks = ['butterworth', 'gammatone']
 channels = [32, 64]
 for filterbank in filterbanks:
     for channel in channels:
-        command = f'python -u 1-encodingSpike.py -f={filterbank} -c={channel}'
+        command = f'python3 -u 1-encodingSpike.py -f={filterbank} -c={channel}'
         print(command)
         os.system(command)
 
@@ -39,6 +39,6 @@ configurations = [
 for encoding in encodings:
     for configuration in configurations:
         filterbank, channel, binsWindow = configuration
-        command = f'python -u 2-encodingSonogram.py -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}'
+        command = f'python3 -u 2-encodingSonogram.py -e={encoding} -f={filterbank} -c={channel} -b={binsWindow}'
         print(command)
         os.system(command)
