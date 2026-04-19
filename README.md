@@ -68,7 +68,8 @@ This repository also provides the docker file present in `Dockerfile` to customi
   - `3-inferenceSCNN`.
 - `datasets`: folder containing all the raw level samples necessary for the creation of datasets for training in CNN and inference in SCNN;
   - Free Spoken Digit Dataset: https://github.com/Jakobovski/free-spoken-digit-dataset
-  - ~~Human Activity Recognition Dataset: https://archive.ics.uci.edu/dataset/507/wisdm+smartphone+and+smartwatch+activity+and+biometrics+dataset~~
+  - ~~Human Activity Recognition Dataset: https://archive.ics.uci.edu/dataset/507/wisdm+smartphone+and+smartwatch+activity+and+biometrics+dataset~~.
+  - Siddha Dataset: https://huggingface.co/datasets/neuromorphic-polito/siddha
 - `networkModels`: destination folder for storing CNN networks keras models;
 - `networkPerformance`: destination folder for all CNN and SCNN performance data;
 - `utils`: It contains all the scripts needed for sample preprocessing and encoding. Definition of CNN networks and conversion to SCNN.
