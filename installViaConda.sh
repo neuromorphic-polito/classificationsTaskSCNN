@@ -46,6 +46,9 @@ then
     cd genn
     python setup.py install
     cd ..
+    rm -rf genn
+    
+    # Installing package via PIP
     pip install matplotlib==3.10.1
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
     pip install scipy==1.15.2
@@ -57,7 +60,7 @@ fi
 #################################
 git clone https://github.com/Jakobovski/free-spoken-digit-dataset.git
 cp free-spoken-digit-dataset/recordings/* datasets/FreeSpokenDigits/datasetRaw
-rm -r free-spoken-digit-dataset
+rm -rf free-spoken-digit-dataset
 
 wget https://huggingface.co/datasets/neuromorphic-polito/siddha/resolve/main/datasets/dataset/dataset.bin?download=true
 mv dataset.bin?download=true datasetsWisdm.bin
