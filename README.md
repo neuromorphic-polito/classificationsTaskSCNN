@@ -43,6 +43,22 @@ chmod +x installViaConda.sh
 ./installViaConda.sh
 ```
 
+## Docker configuration
+
+Docker setup enviroment.
+
+Run with GPU
+```
+sudo docker run --rm -d --gpus all -p 8080:8080 --name classification innuce/classifications-scnn:1.0.0
+```
+
+Run without GPU
+```
+sudo docker run --rm -d -p 8080:8080 --name classification innuce/classifications-scnn:1.0.0
+```
+
+This repository also provides the docker file present in `Dockerfile` to customize your build.
+
 
 ## Project Structure
 - `classificationFSD`, `classificationHAR`: the following folders contain all the scripts for the reproducibility of the experiments according to the development level:
